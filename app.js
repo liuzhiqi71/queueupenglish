@@ -613,7 +613,7 @@ function renderLobby() {
                 <span class="brand-blob"></span>
                 Queue Up English
               </div>
-              <div class="brand-subtitle">排队闯词场</div>
+              <div class="brand-subtitle">闯关挑战</div>
             </div>
             <button class="mini-btn" data-action="reset-progress">Reset</button>
           </div>
@@ -1017,6 +1017,7 @@ function renderPickBody(question) {
 function renderBuildBody(question) {
   const selectedTokens = question.tokens.filter((token) => state.ui.selection.includes(token.id));
   const assembled = selectedTokens.map((token) => token.text).join(question.separator);
+  const revealAnswer = Boolean(state.ui.pendingAdvance && state.ui.feedback?.type === "correct");
   return `
     <div class="build-stage">
       <div class="chip-row">
@@ -1024,7 +1025,13 @@ function renderBuildBody(question) {
         <span class="chip">${question.item.itemType === "phrase" ? "Keep the order clean" : "Listen for the chunk rhythm"}</span>
       </div>
       <div class="assembled-answer ${assembled ? "" : "is-empty"}">
-        ${assembled ? selectedTokens.map((token) => `<span class="assembled-token">${escapeHtml(token.text)}</span>`).join("") : "Tap the pieces in order."}
+        ${
+          revealAnswer
+            ? `<span class="assembled-complete">${escapeHtml(question.item.text)}</span>`
+            : assembled
+              ? selectedTokens.map((token) => `<span class="assembled-token">${escapeHtml(token.text)}</span>`).join("")
+              : "Tap the pieces in order."
+        }
       </div>
       <div class="tile-bank">
         ${question.tokens

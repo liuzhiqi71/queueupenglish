@@ -1071,6 +1071,7 @@ a {
 }
 
 .assembled-token,
+.assembled-complete,
 .fix-tile,
 .sentence-blank,
 .sentence-answer {
@@ -1095,6 +1096,12 @@ a {
   background: rgba(141, 181, 156, 0.2);
 }
 
+.assembled-complete {
+  background: rgba(141, 181, 156, 0.22);
+  font-size: clamp(1.1rem, 1.8vw, 1.35rem);
+  letter-spacing: 0.02em;
+}
+
 .tile-bank {
   display: flex;
   flex-wrap: wrap;
@@ -1105,10 +1112,20 @@ a {
 .chip-btn {
   min-height: 56px;
   padding: 12px 16px;
+  font-weight: 700;
+}
+
+.tile-btn {
   background: rgba(255, 255, 255, 0.82);
   border: 1px solid rgba(32, 51, 45, 0.08);
   box-shadow: var(--shadow-soft);
-  font-weight: 700;
+}
+
+.chip-btn {
+  color: var(--ink);
+  background: linear-gradient(180deg, #ffd96b 0%, #efbf42 100%);
+  border: 1px solid rgba(209, 154, 25, 0.46);
+  box-shadow: 0 12px 24px rgba(239, 191, 66, 0.28);
 }
 
 .tile-btn.is-used {
