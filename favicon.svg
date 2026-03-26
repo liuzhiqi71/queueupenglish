@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Queue Up English icon">
+  <rect width="64" height="64" rx="18" fill="#fbf4e4" />
+  <path d="M12 44c0-3.314 2.686-6 6-6h28c3.314 0 6 2.686 6 6v4H12v-4Z" fill="#f0e5ca" />
+  <path d="M38 16h10c2.761 0 5 2.239 5 5v19H38V16Z" fill="#efbf42" />
+  <path d="M42 20h7v16h-7z" fill="#fff2be" opacity=".75" />
+  <circle cx="18" cy="42" r="8" fill="#efbf42" />
+  <circle cx="30" cy="34" r="8" fill="#8db59c" />
+  <circle cx="42" cy="42" r="8" fill="#de8872" />
+  <path d="M14.5 43.5c1.2 1.7 5.8 1.7 7 0" stroke="#20332d" stroke-linecap="round" stroke-width="1.6" />
+  <path d="M26.5 35.5c1.2 1.7 5.8 1.7 7 0" stroke="#20332d" stroke-linecap="round" stroke-width="1.6" />
+  <path d="M38.5 43.5c1.2 1.7 5.8 1.7 7 0" stroke="#20332d" stroke-linecap="round" stroke-width="1.6" />
+</svg>
