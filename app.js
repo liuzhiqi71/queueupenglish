@@ -70,6 +70,7 @@ async function boot() {
     state.capstonePool = payload.items.filter((item) => item.capstoneEligible && item.capstoneTarget);
     state.routeCount = Math.ceil(state.practiceSequence.length / ROUTE_SIZE);
     state.progress = loadProgress();
+    migrateProgressIfNeeded();
     sanitizeProgress();
     render();
   } catch (error) {
@@ -90,7 +91,11 @@ async function loadCourse() {
   return response.json();
 }
 
-function defaultProgress() {
+function currentCourseRevision() {
+  return state.course?.meta?.courseRevision || "course-unknown";
+}
+
+function baseProgressDefaults() {
   return {
     practicedIds: [],
     masteredIds: [],
@@ -105,6 +110,14 @@ function defaultProgress() {
     capstoneCurrentBatchIds: [],
     capstoneQuestionIndex: 0,
     capstoneCompletedBatches: 0,
+    courseRevision: null,
+  };
+}
+
+function defaultProgress() {
+  return {
+    ...baseProgressDefaults(),
+    courseRevision: currentCourseRevision(),
   };
 }
 
@@ -114,7 +127,7 @@ function loadProgress() {
     if (!parsed) {
       return defaultProgress();
     }
-    return { ...defaultProgress(), ...parsed };
+    return { ...baseProgressDefaults(), ...parsed };
   } catch {
     return defaultProgress();
   }
@@ -124,18 +137,73 @@ function saveProgress() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.progress));
 }
 
+function getClearedRouteCount(masteredIds) {
+  const mastered = new Set(masteredIds);
+  let clearedRoutes = 0;
+
+  for (let routeIndex = 0; routeIndex < state.routeCount; routeIndex += 1) {
+    const routeItems = getRouteItems(routeIndex);
+    if (!routeItems.length || !routeItems.every((item) => mastered.has(item.id))) {
+      break;
+    }
+    clearedRoutes += 1;
+  }
+
+  return clearedRoutes;
+}
+
+function migrateProgressIfNeeded() {
+  const revision = currentCourseRevision();
+  if (state.progress.courseRevision === revision) {
+    return;
+  }
+
+  const itemIds = new Set(state.course.items.map((item) => item.id));
+  const practicedIds = state.progress.practicedIds.filter((id) => itemIds.has(id));
+  const masteredIds = state.progress.masteredIds.filter((id) => itemIds.has(id));
+  const clearedRoutes = getClearedRouteCount(masteredIds);
+
+  state.progress = {
+    ...defaultProgress(),
+    practicedIds,
+    masteredIds,
+    routeIndex: clearedRoutes,
+    stickers: clearedRoutes,
+    bestStreak: Math.max(0, Number(state.progress.bestStreak) || 0),
+  };
+}
+
 function sanitizeProgress() {
   const itemIds = new Set(state.course.items.map((item) => item.id));
+  const capstoneIds = new Set(state.capstonePool.map((item) => item.id));
+  const capstoneBatches = Math.ceil(state.capstonePool.length / CAPSTONE_BATCH_SIZE);
 
   state.progress.practicedIds = state.progress.practicedIds.filter((id) => itemIds.has(id));
   state.progress.masteredIds = state.progress.masteredIds.filter((id) => itemIds.has(id));
-  state.progress.capstoneQueue = state.progress.capstoneQueue.filter((id) => itemIds.has(id));
-  state.progress.capstoneCurrentBatchIds = state.progress.capstoneCurrentBatchIds.filter((id) => itemIds.has(id));
+  state.progress.capstoneQueue = state.progress.capstoneQueue.filter((id) => capstoneIds.has(id));
+  state.progress.capstoneCurrentBatchIds = state.progress.capstoneCurrentBatchIds.filter((id) => capstoneIds.has(id));
+  state.progress.currentStreak = Math.max(0, Number(state.progress.currentStreak) || 0);
+  state.progress.bestStreak = Math.max(
+    state.progress.currentStreak,
+    Math.max(0, Number(state.progress.bestStreak) || 0),
+  );
 
   state.progress.routeIndex = clamp(state.progress.routeIndex, 0, state.routeCount);
+  state.progress.stickers = clamp(
+    Math.max(Number(state.progress.stickers) || 0, state.progress.routeIndex),
+    0,
+    state.routeCount,
+  );
   if (state.progress.activeRouteIndex !== null) {
     state.progress.activeRouteIndex = clamp(state.progress.activeRouteIndex, 0, Math.max(state.routeCount - 1, 0));
   }
+  state.progress.capstoneQuestionIndex = Math.max(0, Number(state.progress.capstoneQuestionIndex) || 0);
+  state.progress.capstoneCompletedBatches = clamp(
+    Number(state.progress.capstoneCompletedBatches) || 0,
+    0,
+    capstoneBatches,
+  );
+  state.progress.courseRevision = currentCourseRevision();
 
   if (state.progress.activeMode === "practice") {
     if (state.progress.activeRouteIndex === null || state.progress.routeIndex >= state.routeCount) {
@@ -657,7 +725,7 @@ function renderLobby() {
             <span class="stat-value">${isCapstoneUnlocked ? "Sentence" : `Route ${nextRoute + 1}`}</span>
           </div>
           <div>
-            <span class="stat-label">Best streak</span>
+            <span class="stat-label">Longest streak</span>
             <span class="stat-value">${state.progress.bestStreak}</span>
           </div>
           <div>
@@ -822,7 +890,7 @@ function buildCapstoneResult(remaining) {
     stats: [
       { label: "Batches", value: String(clearedBatches) },
       { label: "Remaining", value: String(remaining) },
-      { label: "Best streak", value: String(state.progress.bestStreak) },
+      { label: "Longest streak", value: String(state.progress.bestStreak) },
     ],
   };
 }
@@ -1177,6 +1245,7 @@ function handleClick(event) {
   if (action === "restart-current-route") {
     state.resultView = null;
     state.previewLobby = false;
+    state.progress.currentStreak = 0;
     startRoute(state.progress.activeRouteIndex ?? state.progress.routeIndex);
     return;
   }
@@ -1189,6 +1258,7 @@ function handleClick(event) {
   if (action === "reseed-capstone") {
     state.resultView = null;
     state.previewLobby = false;
+    state.progress.currentStreak = 0;
     state.progress.capstoneQueue = [];
     state.progress.capstoneCurrentBatchIds = [];
     state.progress.capstoneQuestionIndex = 0;
@@ -1400,7 +1470,6 @@ function startRoute(routeIndex) {
   state.progress.activeMode = "practice";
   state.progress.activeRouteIndex = routeIndex;
   state.progress.activeQuestionIndex = 0;
-  state.progress.currentStreak = 0;
   state.flash = null;
   resetQuestionUi();
   saveProgress();
@@ -1431,7 +1500,6 @@ function startCapstone() {
   if (!state.progress.capstoneCurrentBatchIds.length) {
     state.progress.capstoneCurrentBatchIds = state.progress.capstoneQueue.slice(0, CAPSTONE_BATCH_SIZE);
     state.progress.capstoneQuestionIndex = 0;
-    state.progress.currentStreak = 0;
   }
 
   state.progress.activeMode = "capstone";

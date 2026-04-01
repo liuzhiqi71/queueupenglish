@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import re
 import sys
@@ -88,6 +89,9 @@ class CourseItem:
     exampleNatural: bool
     searchText: str
     capstoneTarget: str | None
+
+
+CSV_FIELDS = ("单词", "中文", "词组", "词组中文", "例句")
 
 
 def normalize_space(value: str) -> str:
@@ -233,6 +237,15 @@ def row_to_item(row_number: int, row: dict[str, str]) -> CourseItem:
     )
 
 
+def build_course_revision(rows: list[dict[str, str]]) -> str:
+    normalized_rows = [
+        {field: normalize_space(row.get(field, "")) for field in CSV_FIELDS}
+        for row in rows
+    ]
+    payload = json.dumps(normalized_rows, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
+
+
 def main() -> int:
     if len(sys.argv) < 3:
         print(
@@ -246,12 +259,14 @@ def main() -> int:
     output_json = Path(sys.argv[2]).expanduser().resolve()
     output_js = output_json.with_suffix(".js")
 
+    rows: list[dict[str, str]] = []
     items: list[CourseItem] = []
     with source_csv.open(encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
         for row_number, row in enumerate(reader, start=1):
             if not (row.get("单词") or row.get("词组")):
                 continue
+            rows.append(row)
             items.append(row_to_item(row_number, row))
 
     category_counts = Counter(item.category for item in items)
@@ -260,6 +275,7 @@ def main() -> int:
 
     payload = {
         "meta": {
+            "courseRevision": build_course_revision(rows),
             "generatedAt": datetime.now(timezone.utc).isoformat(),
             "sourceCsv": str(source_csv),
             "totalItems": len(items),
